@@ -1,0 +1,46 @@
+{
+    "cooldown": 10,
+    "port": 1100,
+    "weapon": "Vandal",
+    "chat_limit": 5,
+    "table": {
+        "skin": true,
+        "rr": true,
+        "earned_rr": true,
+        "peakrank": true,
+        "previousrank": true,
+        "leaderboard": true,
+        "headshot_percent": true,
+        "winrate": true,
+        "kd": true,
+        "level": true,
+        "skin_name_length": 0
+    },
+    "flags": {
+        "last_played": true,
+        "auto_hide_leaderboard": true,
+        "pre_cls": false,
+        "game_chat": false,
+        "peak_rank_act": true,
+        "discord_rpc": true,
+        "aggregate_rank_rr": true,
+        "server_id": true,
+        "short_ranks": false,
+        "truncate_skins": true,
+        "truncate_names": true,
+        "starting_side": false,
+        "enemy_probe_v3": true,
+        "enemy_table_preview": true
+    },
+   "rpc_overrides": {                          
+      "rank": "real",
+      "agent": "real",
+      "party_size": "real",
+      "party_max": "real",
+      "score_ally": "real",
+      "score_enemy": "real",
+      "rpc_state": "real",
+      "map": "real",
+        "game_mode": "real" 
+    }
+}

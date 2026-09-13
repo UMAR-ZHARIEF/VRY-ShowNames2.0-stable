@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Runtime artifacts
+logs/
+name_cache.json
+
+# Development / agent tooling
+.serena/
+.opencode/
+.pi/
+backups/
+research/
+docs/
+uploaded screenshots/
+
+# OS
+Thumbs.db
+.DS_Store

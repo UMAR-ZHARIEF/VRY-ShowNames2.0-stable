@@ -1,0 +1,139 @@
+VRY ShowNames - Discord Appearance (rpc_overrides) Value Reference
+====================================================================
+
+All settings live in config.json under "rpc_overrides".
+Every setting also accepts "real" (lowercase) = use your genuine value.
+Changes apply after restarting the app.
+
+
+1. "rank" - rank badge shown in the card corner (all 3 cards)
+----------------------------------------------------------------
+Valid values (exactly as written, e.g. "Ascendant 3"):
+
+  Iron 1, Iron 2, Iron 3
+  Bronze 1, Bronze 2, Bronze 3
+  Silver 1, Silver 2, Silver 3
+  Gold 1, Gold 2, Gold 3
+  Platinum 1, Platinum 2, Platinum 3
+  Diamond 1, Diamond 2, Diamond 3
+  Ascendant 1, Ascendant 2, Ascendant 3
+  Immortal 1, Immortal 2, Immortal 3
+  Radiant
+
+Names are case-insensitive ("diamond 2" works). A typo is not an error:
+the app logs a warning and uses your real rank.
+
+
+2. "agent" - agent name shown in the in-match top line (e.g. "... - 9 - Sova")
+----------------------------------------------------------------
+Valid values: any agent name from the list:
+
+  Brimstone, Viper, Omen, Killjoy, Cypher, Sova, Sage, Phoenix, Jett,
+  Reyna, Raze, Breach, Skye, Yoru, Astra, KAY/O, Chamber, Neon, Fade,
+  Harbor, Gekko, Deadlock, Iso, Clove, Vyse, Tejo, Waylay
+
+Only affects the in-match card (agent text). Typos fall back to your
+real locked agent.
+
+
+3. "rpc_state" - which card is shown (pins the card to one state)
+----------------------------------------------------------------
+Valid values (lowercase):
+
+  real          follow your actual game (default)
+  lobby         always show the main-menu card
+  agent_select  always show the agent-select card
+  ingame        always show the in-match card
+
+While pinned, your real game state changes are ignored until you set
+"real" again. The game mode text (e.g. "Competitive") still comes from
+your real queue. A pinned ingame card with "real" scores shows
+placeholder numbers - set score_ally/score_enemy when faking a match.
+
+
+4. "map" - big image (map splash) on the agent-select and in-match cards
+----------------------------------------------------------------
+Valid values: any map name:
+
+  Ascent, Bind, Breeze, Fracture, Haven, Icebox, Lotus, Pearl, Split,
+  Sunset, Abyss, Corrode, District, Drift, Glitch, Kasbah, Piazza, Port
+
+Case-insensitive. Typos fall back to your real map.
+
+
+5. "party_size" - first number of the party line (all 3 cards)
+----------------------------------------------------------------
+Valid values: any whole number (e.g. "4"), or "real".
+Example: with party_size "4" the card shows "In a Party (4 of 5)".
+
+
+6. "party_max" - second number of the party line (all 3 cards)
+----------------------------------------------------------------
+Valid values: any whole number (e.g. "5"), or "real".
+Example: with party_max "5" the card shows "In a Party (4 of 5)".
+
+
+7. "score_ally" - your team's score (in-match card only)
+----------------------------------------------------------------
+Valid values: any whole number (e.g. "13"), or "real".
+When "real" during an actual match, the score updates live.
+When faking ingame from the lobby, set a number (real has nothing to read).
+
+
+8. "score_enemy" - enemy team's score (in-match card only)
+----------------------------------------------------------------
+Valid values: any whole number (e.g. "9"), or "real". Same notes as score_ally.
+
+
+9. "game_mode" - the mode text shown in the card's top line (all 3 cards)
+----------------------------------------------------------------
+Valid values: ANY text (e.g. "Unrated", "Premier", "Custom Tournament"),
+or "real" (follows your actual queue, incl. the automatic "Custom Game"
+label for customs). There is no fixed list to validate against, so your
+text is shown verbatim - a typo will appear on the card as typed.
+Empty or blank value falls back to "real".
+Examples: with game_mode "Unrated" the in-match line reads
+"Unrated // 13 - 9 - Waylay" and the lobby line reads " Lobby - Unrated".
+
+
+Quick copy-paste templates
+==========================
+
+Everything genuine (default):
+  "rpc_overrides": {
+      "rank": "real",
+      "agent": "real",
+      "party_size": "real",
+      "party_max": "real",
+      "score_ally": "real",
+      "score_enemy": "real",
+      "rpc_state": "real",
+      "map": "real",
+      "game_mode": "real"
+  }
+
+Full fake match (Ascendant 3, Sova, 4-man party, 13-9 Unrated on Ascent):
+  "rpc_overrides": {
+      "rank": "Ascendant 3",
+      "agent": "Sova",
+      "party_size": "4",
+      "party_max": "5",
+      "score_ally": "13",
+      "score_enemy": "9",
+      "rpc_state": "ingame",
+      "map": "Ascent",
+      "game_mode": "Unrated"
+  }
+
+Only fake the rank badge, everything else real:
+  "rpc_overrides": {
+      "rank": "Immortal 1",
+      "agent": "real",
+      "party_size": "real",
+      "party_max": "real",
+      "score_ally": "real",
+      "score_enemy": "real",
+      "rpc_state": "real",
+      "map": "real",
+      "game_mode": "real"
+  }
