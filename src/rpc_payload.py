@@ -254,30 +254,28 @@ def build_presence_payload(presence, data, overrides, map_dict, gamemodes, color
             details = f"{details} · {agent_display}"
 
         match_map = (match_map or "").lower()
-        mapText = map_dict.get(match_map)
-        if mapText == "The Range":
-            mapImage = "splash_range_square"
+        map_display = map_dict.get(match_map)
+        if overrides.map_display is not None:
+            map_display = overrides.map_display
+
+        # V icon replaces the map splash; the map name moves to text.
+        # The Range keeps its distinctive details line.
+        if map_display == "The Range":
             details = "in Range"
             if agent_display:
                 details = f"in Range · {agent_display}"
+        if map_display:
+            state = f"{map_display} · In a Party ({party_size} of {max_party})"
+            large_text = f"VALORANT · {map_display}"
         else:
-            mi = map_dict.get(match_map)
-            mapImage = f"splash_{mi}_square".lower() if mi else None
-
-        # Map override replaces the real splash in the two map-bearing cards.
-        if overrides.map_display is not None:
-            mapText = overrides.map_display
-            mapImage = f"splash_{overrides.map_display}_square".lower()
-
-        if not mapText:
-            mapText = None
-            mapImage = None
+            state = f"In a Party ({party_size} of {max_party})"
+            large_text = "VALORANT"
 
         return dict(
-            state=f"In a Party ({party_size} of {max_party})",
+            state=state,
             details=details,
-            large_image=mapImage,
-            large_text=mapText,
+            large_image="game_icon",
+            large_text=large_text,
             small_image=rank_image,
             small_text=rank_text,
             start=int(start_time),
@@ -310,19 +308,23 @@ def build_presence_payload(presence, data, overrides, map_dict, gamemodes, color
             gamemode = overrides.game_mode_display
 
         match_map = (match_map or "").lower()
-        mapText = map_dict.get(match_map)
-        mapImage = f"splash_{mapText}_square".lower() if mapText else None
-
-        # Map override replaces the real splash in the two map-bearing cards.
+        map_display = map_dict.get(match_map)
         if overrides.map_display is not None:
-            mapText = overrides.map_display
-            mapImage = f"splash_{overrides.map_display}_square".lower()
+            map_display = overrides.map_display
+
+        # V icon replaces the map splash; the map name moves to text.
+        if map_display:
+            state = f"{map_display} · In a Party ({party_size} of {max_party})"
+            large_text = f"VALORANT · {map_display}"
+        else:
+            state = f"In a Party ({party_size} of {max_party})"
+            large_text = "VALORANT"
 
         return dict(
-            state=f"In a Party ({party_size} of {max_party})",
+            state=state,
             details=f"Agent Select - {gamemode}",
-            large_image=mapImage,
-            large_text=mapText if mapText else None,
+            large_image="game_icon",
+            large_text=large_text,
             small_image=rank_image,
             small_text=rank_text,
         ), last_loop_state, start_time

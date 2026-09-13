@@ -178,7 +178,7 @@ class BuildPayloadTests(unittest.TestCase):
     def test_party_override_applies_in_ingame_state_line(self):
         payload, _, _ = self.build(
             FLAT_INGAME, DATA_RANK, RpcOverrides(party_size=4, party_max=5))
-        self.assertEqual(payload["state"], "In a Party (4 of 5)")
+        self.assertEqual(payload["state"], "Ascent · In a Party (4 of 5)")
 
     def test_state_change_resets_timer(self):
         result = self.build(FLAT_MENUS, DATA_RANK)
@@ -198,11 +198,14 @@ class BuildPayloadTests(unittest.TestCase):
         self.assertEqual(start, 100.0)
 
     def test_range_variant_keeps_rank_corner_and_agent_text(self):
-        presence = dict(FLAT_INGAME, matchMap="/Game/Maps/TheRange")
+        presence = dict(FLAT_INGAME, matchMap="/Game/Maps/TheRange",
+                        partySize=2, maxPartySize=5)
         payload, _, _ = self.build(presence, DATA_RANK)
         self.assertEqual(payload["details"], "in Range · Sova")
-        self.assertEqual(payload["large_image"], "splash_range_square")
+        self.assertEqual(payload["large_image"], "game_icon")
         self.assertEqual(payload["small_image"], "19")
+        self.assertEqual(payload["state"], "The Range · In a Party (2 of 5)")
+        self.assertEqual(payload["state"], "The Range · In a Party (2 of 5)")
 
 
 if __name__ == "__main__":

@@ -149,8 +149,8 @@ class AllRealIngamingTests(unittest.TestCase):
         self.assertEqual(payload["small_image"], _DATA_REAL["rank"])
         self.assertEqual(payload["small_text"], "Immortal 3")
         self.assertEqual(payload["details"], "Competitive // 7 - 5 · Reyna")
-        self.assertEqual(payload["state"], "In a Party (2 of 5)")
-        self.assertEqual(payload["large_image"], "splash_ascent_square")
+        self.assertEqual(payload["state"], "Ascent · In a Party (2 of 5)")
+        self.assertEqual(payload["large_image"], "game_icon")
 
     def test_nested_ingame_all_real(self):
         payload, _, _ = build_presence_payload(
@@ -207,8 +207,8 @@ class PartyOverrideTests(unittest.TestCase):
     def test_party_numbers_apply_to_all_three_state_lines(self):
         overrides = _overrides({"party_size": 4, "party_max": 5})
         expected_states = ["Open Party (4 of 5)",
-                           "In a Party (4 of 5)",
-                           "In a Party (4 of 5)"]
+                           "Ascent · In a Party (4 of 5)",
+                           "Ascent · In a Party (4 of 5)"]
         for presence, expected_state in zip(
                 (_menus_presence(), _pregame_presence(),
                  _ingame_presence(nested=False)), expected_states):
@@ -283,6 +283,8 @@ class RangeVariantTests(unittest.TestCase):
         )
         self.assertEqual(payload["details"], "in Range · Reyna")
         self.assertEqual(payload["small_image"], str(_tier_for("Diamond 2")))
+        self.assertEqual(payload["large_image"], "game_icon")
+        self.assertEqual(payload["state"], "The Range · In a Party (2 of 5)")
 
 
 class TimerResetTests(unittest.TestCase):

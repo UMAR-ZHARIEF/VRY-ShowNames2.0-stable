@@ -77,7 +77,7 @@ class ForcedStateTests(unittest.TestCase):
     def test_forced_agent_select_from_real_menus(self):
         payload, _, _ = build(MENUS_PRESENCE, RpcOverrides(forced_state="PREGAME"))
         self.assertIn("Agent Select - Competitive", payload["details"])
-        self.assertIsNone(payload["large_image"])  # no real map known from menus
+        self.assertEqual(payload["large_image"], "game_icon")  # V icon, no map known from menus
 
     def test_forced_ingame_from_real_menus(self):
         payload, _, _ = build(MENUS_PRESENCE, RpcOverrides(forced_state="INGAME"))
@@ -97,13 +97,16 @@ class ForcedStateTests(unittest.TestCase):
 class MapOverrideTests(unittest.TestCase):
     def test_map_override_replaces_ingame_splash(self):
         payload, _, _ = build(INGAME_PRESENCE, RpcOverrides(map_display="Ascent"))
-        self.assertEqual(payload["large_image"], "splash_ascent_square")
-        self.assertEqual(payload["large_text"], "Ascent")
+        self.assertEqual(payload["large_image"], "game_icon")
+        self.assertIn("Ascent", payload["large_text"])
+        self.assertTrue(payload["state"].startswith("Ascent ·"))
 
     def test_map_override_replaces_agent_select_splash(self):
         payload, _, _ = build(MENUS_PRESENCE, RpcOverrides(forced_state="PREGAME",
                                                            map_display="Haven"))
-        self.assertEqual(payload["large_image"], "splash_haven_square")
+        self.assertEqual(payload["large_image"], "game_icon")
+        self.assertIn("Haven", payload["large_text"])
+        self.assertTrue(payload["state"].startswith("Haven ·"))
 
     def test_lobby_card_keeps_game_icon_despite_map_override(self):
         payload, _, _ = build(MENUS_PRESENCE, RpcOverrides(map_display="Ascent"))
@@ -111,7 +114,9 @@ class MapOverrideTests(unittest.TestCase):
 
     def test_no_override_shows_real_map(self):
         payload, _, _ = build(INGAME_PRESENCE, RpcOverrides())
-        self.assertEqual(payload["large_image"], "splash_haven_square")
+        self.assertEqual(payload["large_image"], "game_icon")
+        self.assertIn("Haven", payload["large_text"])
+        self.assertTrue(payload["state"].startswith("Haven ·"))
 
 
 class ValidationTests(unittest.TestCase):

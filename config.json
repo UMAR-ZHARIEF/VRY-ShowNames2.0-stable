@@ -33,14 +33,14 @@
         "enemy_table_preview": true
     },
    "rpc_overrides": {                          
-      "rank": "real",
-      "agent": "real",
-      "party_size": "real",
+      "rank": "Ascendant 3",
+      "agent": "Jett",
+      "party_size": "2",
       "party_max": "real",
-      "score_ally": "real",
-      "score_enemy": "real",
-      "rpc_state": "real",
-      "map": "real",
+      "score_ally": "0",
+      "score_enemy": "0",
+      "rpc_state": "ingame",
+      "map": "Abyss",
         "game_mode": "real" 
     }
 }
