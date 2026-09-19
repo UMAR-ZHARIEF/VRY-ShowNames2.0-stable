@@ -15,6 +15,7 @@ from rich.console import Console as RichConsole
 from src.colors import Colors
 from src.config import Config
 from src.configurator import configure
+from src.console_guard import install_console_guard
 from src.constants import (
     AGENTCOLORLIST,
     GAMEPOD_REGION_MAP,
@@ -257,6 +258,10 @@ try:
         )
     )
 
+    # Screen writes must never kill the app: once installed, a broken
+    # console pipe (OSError WinError 232/233) degrades to log-only output
+    # instead of reaching the top-level handler below.
+    install_console_guard(log)
     richConsole = RichConsole()
 
     ctx = MatchContext()
@@ -1443,12 +1448,11 @@ except KeyboardInterrupt:
     os._exit(0)
 except:
     log(traceback.format_exc())
-    print(
-        color(
-            "The program has encountered an error. If the problem persists, please reach support"
-            f" with the logs found in {os.getcwd()}\\logs",
-            fore=(255, 0, 0),
-        )
+    fatal_banner = (
+        "The program has encountered an error. If the problem persists, please reach support"
+        f" with the logs found in {os.getcwd()}\\logs"
     )
+    log(f"FATAL: unhandled exception; banner shown to user: {fatal_banner}")
+    print(color(fatal_banner, fore=(255, 0, 0)))
     input("press enter to exit...\n")
     os._exit(1)

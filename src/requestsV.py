@@ -111,7 +111,10 @@ class Requests:
                 if not response.ok: self.headers = {}
                 return response.json()
         except json.decoder.JSONDecodeError:
-            self.log(f"JSONDecodeError in fetch function, resp.code: {response.status_code}, resp_text: '{response.text}")
+            self.log(
+                f"JSONDecodeError in fetch function, resp.code: {response.status_code}, "
+                f"full response: {response!r}, full response text: {response.text}"
+            )
             print(response)
             print(response.text)
 

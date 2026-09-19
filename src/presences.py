@@ -1,4 +1,5 @@
 import base64
+import binascii
 import json
 import time
 
@@ -6,6 +7,39 @@ class Presences:
     def __init__(self, Requests, log):
         self.Requests = Requests
         self.log = log
+        self._decode_failure_count = 0
+
+    def _log_decode_failure(self, site, detail):
+        """Rate-limited presence-decode failure log: first failure, then
+        every 50th, so a poison blob cannot spam the log."""
+        self._decode_failure_count += 1
+        if self._decode_failure_count == 1 or self._decode_failure_count % 50 == 0:
+            try:
+                self.log(f"presence decode failure #{self._decode_failure_count} ({site}): {detail}")
+            except Exception:
+                pass
+
+    def _decode_private_payload(self, raw, site):
+        """Decode a presence 'private' blob (base64 of JSON) into a dict.
+
+        The client sometimes delivers the blob DOUBLE-ENCODED: base64 of a
+        JSON string that itself contains the JSON object, so a str result is
+        json-parsed once more. Returns the dict, or None on any failure
+        (bad base64, malformed JSON, non-dict payload); failures are logged
+        rate-limited and never raised.
+        """
+        try:
+            payload = json.loads(base64.b64decode(str(raw)).decode("utf-8"))
+            if isinstance(payload, str):
+                # Double-encoded payload: unwrap the inner JSON string.
+                payload = json.loads(payload)
+            if not isinstance(payload, dict):
+                self._log_decode_failure(site, f"payload is {type(payload).__name__}, not a dict")
+                return None
+            return payload
+        except (json.JSONDecodeError, ValueError, TypeError, AttributeError, binascii.Error) as exc:
+            self._log_decode_failure(site, f"{type(exc).__name__}: {exc}")
+            return None
 
     def get_presence(self):
         presences = self.Requests.fetch(url_type="local", endpoint="/chat/v4/presences", method="get")
@@ -40,18 +74,18 @@ class Presences:
                 else:
                     if presence['private'] == "": 
                         return None
-                    decoded_private = json.loads(base64.b64decode(presence['private']))
+                    # Double-encode tolerant decode: None (rate-limited log)
+                    # instead of an exception on malformed blobs.
                     # Debug
                     # self.log(f"DEBUG: Decoded Private Presence -> {decoded_private}")
-                    return decoded_private
+                    return self._decode_private_payload(presence['private'], "get_private_presence")
         return None
 
     def decode_presence(self, private):
-        # try:
         if "{" not in str(private) and private is not None and str(private) != "":
-            dict = json.loads(base64.b64decode(str(private)).decode("utf-8"))
-            if dict.get("isValid"):
-                return dict
+            payload = self._decode_private_payload(private, "decode_presence")
+            if payload is not None and payload.get("isValid"):
+                return payload
         return {
             "isValid": False,
             "partyId": 0,

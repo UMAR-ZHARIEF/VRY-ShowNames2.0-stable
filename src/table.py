@@ -152,6 +152,15 @@ class Table:
         self.set_columns()
         self.apply_rows()
 
+        # One compact line per draw: makes every screen draw provable from
+        # the log (rows and rendered width) if the console dies later.
+        try:
+            measured = self.rich_table.__rich_measure__(self.console, self.console.options)
+            width = min(self.console.width, measured.maximum)
+        except Exception:
+            width = -1
+        self.log(f"draw: rows={len(self.rows)} width={width}")
+
         self.console.print(self.rich_table)
 
     def clear(self):

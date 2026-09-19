@@ -278,7 +278,14 @@ class Rpc:
     async def _safe_close(self):
         if self._rpc and self._connected:
             try:
-                await self._rpc.close()
+                # pypresence's close() also calls loop.close(), which raises
+                # "Cannot close a running event loop" here because we are
+                # inside that loop; the loop is owned by the RpcAioPresenceLoop
+                # thread and closed in _thread_target, so only the IPC pipe is
+                # shut down below.
+                self._rpc.send_data(2, {"v": 1, "client_id": self._rpc.client_id})
+                if self._rpc.sock_writer is not None:
+                    self._rpc.sock_writer.close()
                 self.log("RPC: Connection closed gracefully.")
             except Exception as e:
                 self.log(f"RPC: close() reported: {e}")
