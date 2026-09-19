@@ -151,3 +151,7 @@ env/
 tempCodeRunnerFile.py
 vRY.lnk
 node_modules
+
+# runtime cache / local research
+name_cache.json
+/research/

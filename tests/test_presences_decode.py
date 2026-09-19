@@ -132,6 +132,20 @@ class GetPrivatePresenceDecodeTests(unittest.TestCase):
             VALID_PRESENCE,
         )
 
+    def test_production_double_encoded_json_string_returns_dict(self):
+        # True production double-encode shape: the blob's utf-8 content is a
+        # JSON string (json.dumps of the JSON object text), not the object
+        # itself, so the first json.loads returns a str and a second parse
+        # yields the dict.
+        object_text = json.dumps(VALID_PRESENCE)
+        blob = _b64(json.dumps(object_text))
+        first_pass = json.loads(base64.b64decode(blob).decode("utf-8"))
+        self.assertIsInstance(first_pass, str)
+        self.assertEqual(json.loads(first_pass), VALID_PRESENCE)
+        result = self.presences.get_private_presence(self._own_presence(blob))
+        self.assertEqual(result, VALID_PRESENCE)
+        self.assertTrue(result["isValid"])
+
     def test_single_encoded_presence_returns_dict(self):
         self.assertEqual(
             self.presences.get_private_presence(self._own_presence(_b64(VALID_PRESENCE))),
