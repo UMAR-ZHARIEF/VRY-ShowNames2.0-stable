@@ -2,6 +2,27 @@ import glob
 import os
 import time
 
+
+def redact_headers(headers):
+    """Return a copy of a headers dict with credential values replaced by ***.
+
+    Auth header values carry secrets: the lockfile password in
+    'Basic <base64 of riot:password>' and live entitlement tokens in
+    'Bearer <jwt>'. Logging them verbatim writes those secrets into the
+    log files, so only the scheme prefix is kept ('Basic ***', 'Bearer ***').
+    Non-credential values (platform, client version, user agent) are
+    copied unchanged so they stay readable in logs.
+    """
+    redacted = {}
+    for key, value in headers.items():
+        if isinstance(value, str) and value.startswith(("Basic ", "Bearer ")):
+            scheme, _, _credential = value.partition(" ")
+            redacted[key] = scheme + " ***"
+        else:
+            redacted[key] = value
+    return redacted
+
+
 class Logging:
     # logFileOpened is a variable that keeps track of the log file status. 
     # It is initialized as False to represent the log file wasn't open.

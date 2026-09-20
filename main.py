@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import urllib3
@@ -55,10 +56,6 @@ from src.match_context import MatchContext
 from src import static_content
 from src.state_polling import derive_game_state, next_poll_seconds, pregame_draw_decision, render_signature, should_declare_disconnected, should_redraw
 from src.os import get_os
-
-from src.account_manager.account_manager import AccountManager
-from src.account_manager.account_config import AccountConfig
-from src.account_manager.account_auth import AccountAuth
 
 # Render-on-change: fingerprint of the last drawn output. A cycle whose
 # Server / lobby display state, draw-gate state, and the other per-session
@@ -141,9 +138,7 @@ try:
         input("press enter to exit...\n")
         os._exit(1)
 
-    acc_manager = AccountManager(log, AccountConfig, AccountAuth, NUMBERTORANKS)
-
-    ErrorSRC = Error(log, acc_manager)
+    ErrorSRC = Error(log)
 
     Requests = Requests(version, log, ErrorSRC)
 
@@ -227,26 +222,37 @@ try:
     # Rank+stats cache per player for the current match now lives in ctx
     # (MatchContext.reset/ctx.ensure_match_player_cache).
     lastGameState = ""
+    # Serializes match_player_cache bookkeeping inside
+    # get_or_fetch_rank_and_stats: the parallel pre-fetch workers call it
+    # concurrently, and ctx.ensure_match_player_cache sweeps the cache dict
+    # while other workers may be inserting into it. Network fetches stay
+    # outside the lock; sequential callers hit an uncontended lock, so cache
+    # contents and TTL rules are unchanged.
+    _rank_stats_cache_lock = threading.Lock()
+
     def get_or_fetch_rank_and_stats(player_subject, current_match_id):
         if current_match_id:
-            ctx.ensure_match_player_cache(current_match_id)
-            cached = ctx.match_player_cache["players"].get(player_subject)
-            if cached is not None:
-                return (
-                    cached["playerRank"],
-                    cached["previousPlayerRank"],
-                    cached["ppstats"],
-                )
+            with _rank_stats_cache_lock:
+                ctx.ensure_match_player_cache(current_match_id)
+                cached = ctx.match_player_cache["players"].get(player_subject)
+                if cached is not None:
+                    return (
+                        cached["playerRank"],
+                        cached["previousPlayerRank"],
+                        cached["ppstats"],
+                    )
         playerRank = rank.get_rank(player_subject, seasonID)
         previousPlayerRank = rank.get_rank(player_subject, previousSeasonID)
         ppstats = pstats.get_stats(player_subject)
-        if current_match_id and ctx.match_player_cache["match_id"] == current_match_id:
-            ctx.match_player_cache["players"][player_subject] = {
-                "playerRank": dict(playerRank) if isinstance(playerRank, dict) else playerRank,
-                "previousPlayerRank": dict(previousPlayerRank) if isinstance(previousPlayerRank, dict) else previousPlayerRank,
-                "ppstats": dict(ppstats) if isinstance(ppstats, dict) else ppstats,
-                "ts": time.time(),
-            }
+        if current_match_id:
+            with _rank_stats_cache_lock:
+                if ctx.match_player_cache["match_id"] == current_match_id:
+                    ctx.match_player_cache["players"][player_subject] = {
+                        "playerRank": dict(playerRank) if isinstance(playerRank, dict) else playerRank,
+                        "previousPlayerRank": dict(previousPlayerRank) if isinstance(previousPlayerRank, dict) else previousPlayerRank,
+                        "ppstats": dict(ppstats) if isinstance(ppstats, dict) else ppstats,
+                        "ts": time.time(),
+                    }
         return playerRank, previousPlayerRank, ppstats
 
     print("\nvRY Mobile", color(f"- {get_ip()}:{cfg.port}", fore=(255, 127, 80)))
@@ -275,6 +281,22 @@ try:
         ppstats = pstats.get_stats(subject)
         ctx.menus_stats_set(subject, playerRank, previousPlayerRank, ppstats)
         return playerRank, previousPlayerRank, ppstats
+
+    def prefetch_players_parallel(subjects, fetch_one):
+        # Runs one fetch job per player concurrently (bounded pool, <=8
+        # workers) so the per-player gather phases stop being serial. Results
+        # are consumed in submission order, so the first failing player's
+        # exception propagates exactly like the sequential loop it replaced.
+        # Callers keep rendering sequentially from the warmed caches, so
+        # table bytes, row order and spinner text are unchanged.
+        subjects = list(dict.fromkeys(subjects))
+        if not subjects:
+            return
+        max_workers = min(8, len(subjects))
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = [pool.submit(fetch_one, subject) for subject in subjects]
+            for future in futures:
+                future.result()
 
     firstTime = True
     firstPrint = True
@@ -520,9 +542,27 @@ try:
                 pending_blank_puuids = [p for p, n in names.items() if not n.split("#")[0]]
                 if pending_blank_puuids:
                     ctx.pending_post_match_lookup = (coregame_match_id, pending_blank_puuids)
-                # Pre-fetch stats for all players
-                for _p in Players:
-                    get_or_fetch_rank_and_stats(_p["Subject"], coregame_match_id)
+                # Pre-fetch stats for all players (concurrently; the render
+                # loop below reads the warmed match cache unchanged)
+                prefetch_players_parallel(
+                    [_p["Subject"] for _p in Players],
+                    lambda _subject: get_or_fetch_rank_and_stats(
+                        _subject, coregame_match_id
+                    ),
+                )
+                # Pre-warm the hidden-level lookups for exactly the players
+                # the render loop would fetch (HideAccountLevel, not self,
+                # not party) so its in-loop calls stay cache hits.
+                prefetch_players_parallel(
+                    [
+                        _p["Subject"]
+                        for _p in Players
+                        if _p["PlayerIdentity"]["HideAccountLevel"]
+                        and _p["Subject"] != Requests.puuid
+                        and _p["Subject"] not in partyMembersList
+                    ],
+                    pstats.get_level_with_fallback,
+                )
                 loadouts_arr = loadoutsClass.get_match_loadouts(
                     coregame_match_id,
                     Players,
@@ -800,10 +840,8 @@ try:
                 if cfg.get_feature_flag("enemy_probe_v3") and pregame_match_id and pregame_match_id not in ctx.v3_probed_matches:
                     ctx.v3_probed_matches.add(pregame_match_id)
                     try:
-                        from src.enemy_probe_v3 import probe_v3_main_async, xmpp_probe_v3_async, coregame_race_async
+                        from src.enemy_probe_v3 import probe_v3_main_async, coregame_race_async
                         ally_puuids = [p["Subject"] for p in Players if p.get("Subject")]
-                        xmpp_probe_v3_async(Requests, pregame_match_id, ally_puuids,
-                                            Requests.puuid, log, budget_seconds=60)
                         probe_v3_main_async(Requests, pregame_match_id, Requests.puuid,
                                             ally_puuids, log)
                         coregame_race_async(Requests, pregame_match_id, ally_puuids,
@@ -833,9 +871,14 @@ try:
                 if pending_blank_puuids:
                     ctx.pending_post_match_lookup = (pregame_match_id, pending_blank_puuids)
                 ctx.ensure_match_player_cache(pregame_match_id)
-                # Pre-fetch stats for all players
-                for _p in Players:
-                    get_or_fetch_rank_and_stats(_p["Subject"], pregame_match_id)
+                # Pre-fetch stats for all players (concurrently; the render
+                # loop below reads the warmed match cache unchanged)
+                prefetch_players_parallel(
+                    [_p["Subject"] for _p in Players],
+                    lambda _subject: get_or_fetch_rank_and_stats(
+                        _subject, pregame_match_id
+                    ),
+                )
                 playersLoaded = 1
                 with richConsole.status("Loading Players...") as status:
                     presence = presences.get_presence()
@@ -844,6 +887,19 @@ try:
                     )
                     partyMembers = menu.get_party_members(Requests.puuid, presence)
                     partyMembersList = [a["Subject"] for a in partyMembers]
+                    # Pre-warm the hidden-level lookups for exactly the
+                    # players the render loop would fetch, so its in-loop
+                    # calls below stay cache hits (identical bytes).
+                    prefetch_players_parallel(
+                        [
+                            _p["Subject"]
+                            for _p in Players
+                            if _p["PlayerIdentity"]["HideAccountLevel"]
+                            and _p["Subject"] != Requests.puuid
+                            and _p["Subject"] not in partyMembersList
+                        ],
+                        pstats.get_level_with_fallback,
+                    )
                     # log(f"retrieved names dict: {names}")
                     Players.sort(
                         key=lambda Players: Players["PlayerIdentity"].get(
@@ -1034,6 +1090,12 @@ try:
                 log(f"MENUS resolve: blanks {_pre} -> {_post}")
                 namesClass.update_cache(names, nameCache, source="api-menus")
                 nameCache.save_now()
+                # Pre-warm each party member's rank/stats concurrently; the
+                # spinner loop below reads the TTL cache unchanged.
+                prefetch_players_parallel(
+                    [_p["Subject"] for _p in Players],
+                    get_menus_rank_and_stats,
+                )
                 playersLoaded = 1
                 with richConsole.status("Loading Players...") as status:
                     Players.sort(

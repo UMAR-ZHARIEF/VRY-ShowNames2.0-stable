@@ -73,7 +73,7 @@ class MainWiringTests(unittest.TestCase):
         self.assertIn("acquire_single_instance_lock", source)
         self.assertIn("os._exit(0)", source)
         guard_pos = source.index("acquire_single_instance_lock()")
-        heavy_pos = source.index("acc_manager = AccountManager")
+        heavy_pos = source.index("Logging = Logging()")
         self.assertLess(guard_pos, heavy_pos)
 
 

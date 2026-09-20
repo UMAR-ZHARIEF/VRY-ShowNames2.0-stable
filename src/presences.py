@@ -93,7 +93,7 @@ class Presences:
             "partyVersion": 0,
         }
 
-    def wait_for_presence(self, PlayersPuuids, timeout_seconds=10):
+    def wait_for_presence(self, PlayersPuuids, timeout_seconds=2):
         """Poll until every puuid in PlayersPuuids appears in /chat/v4/presences,
         or timeout. Returns True on success, False on timeout.
         """

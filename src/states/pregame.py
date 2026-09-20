@@ -21,7 +21,7 @@ class Pregame:
             match_id = response['MatchID']
             self.log(f"retrieved pregame match id: '{match_id}'")
             return match_id
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, AttributeError):  # AttributeError: fetch() returns None on empty/non-JSON bodies
             self.log(f"cannot find pregame match id: {response}")
             # print(f"No match id found. {response}")
             time.sleep(1)  # brief backoff before the retry fetch (coregame.py sleeps 5s here)
@@ -30,7 +30,7 @@ class Pregame:
                 match_id = self.response['MatchID']
                 self.log(f"retrieved pregame match id: '{match_id}'")
                 return match_id
-            except (KeyError, TypeError):
+            except (KeyError, TypeError, AttributeError):
                 self.log(f"cannot find pregame match id: ")
                 print(f"No match id found. {self.response}")
             return 0

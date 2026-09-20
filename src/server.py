@@ -8,6 +8,15 @@ logging.getLogger('websocket_server.websocket_server').disabled = True
 
 # websocket.enableTrace(True)
 
+# SECURITY CONSTRAINT, do not add auth here without reading this: this server
+# must stay token-free and receive-broadcast-only. The public phone page
+# (https://vry.netlify.app/matchLoadouts) hardcodes `new WebSocket("ws://localhost:1100/")`
+# in its bundle: fixed path "/", no input for a token, and it never sends any
+# message (a path token or first-message PIN would silently break it; the page
+# then shows stale localStorage data). Evidence and options:
+# research/readonly-hardening-w4-phone.md
+
+
 class Server:
     def __init__(self, log, Error):
         self.Error = Error

@@ -1,8 +1,16 @@
 import json
 import threading
 import time
-import requests
 
+from src.http_pool import pooled_requests
+
+# HTTP from this module goes through the shared keep-alive pool in
+# src/http_pool.py, bound under the familiar name so each call site keeps
+# its exact shape and its explicit verify= flag. Every call here is remote
+# and verifies TLS (guard-tested in tests/test_secrets_redaction.py); the
+# multi-shard probe gets one lazily created, cached session per shard via
+# the pool's (pd, shard) family routing.
+requests = pooled_requests
 
 class Names:
 
@@ -23,11 +31,11 @@ class Names:
             missing = [p for p in puuids if p not in self._resolved_memo]
 
         if missing:
-            response = requests.put(self.Requests.pd_url + "/name-service/v2/players", headers=self.Requests.get_headers(), json=missing, verify=False)
+            response = requests.put(self.Requests.pd_url + "/name-service/v2/players", headers=self.Requests.get_headers(), json=missing, verify=True)
 
             if 'errorCode' in response.json():
                 self.log(f'{response.json()["errorCode"]}, new token retrieved')
-                response = requests.put(self.Requests.pd_url + "/name-service/v2/players", headers=self.Requests.get_headers(refresh=True), json=missing, verify=False)
+                response = requests.put(self.Requests.pd_url + "/name-service/v2/players", headers=self.Requests.get_headers(refresh=True), json=missing, verify=True)
 
             name_dict = {player["Subject"]: f"{player['GameName']}#{player['TagLine']}"
                          for player in response.json()}
@@ -96,7 +104,7 @@ class Names:
             response = requests.get(
                 f"{self.Requests.pd_url}/match-details/v1/matches/{match_id}",
                 headers=self.Requests.get_headers(),
-                verify=False,
+                verify=True,
                 timeout=5,
             )
             if response.status_code != 200:
@@ -134,7 +142,7 @@ class Names:
             r = requests.get(
                 f"{self.Requests.pd_url}/match-details/v1/matches/{match_id}",
                 headers=self.Requests.get_headers(),
-                verify=False,
+                verify=True,
                 timeout=8,
             )
             if r.status_code != 200:
@@ -260,7 +268,7 @@ class Names:
             try:
                 url = f"https://pd.{shard}.a.pvp.net/name-service/v2/players"
                 r = requests.put(url, headers=self.Requests.get_headers(),
-                                 json=list(puuids), verify=False, timeout=4)
+                                 json=list(puuids), verify=True, timeout=4)
                 self.log(f"[multi-region] shard={shard} -> HTTP {r.status_code}")
                 if r.status_code != 200:
                     continue

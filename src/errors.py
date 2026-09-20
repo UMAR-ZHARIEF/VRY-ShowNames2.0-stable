@@ -1,13 +1,11 @@
 import socket
 import os.path
-import time
 import os
 
 class Error:
     
-    def __init__(self, log, acc_manager):
+    def __init__(self, log):
         self.log = log
-        self.acc_manager = acc_manager
 
     def PortError(self, port):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,11 +26,11 @@ class Error:
         #ignoring lockfile is for when lockfile exists but it's not really valid, (local endpoints are not initialized yet)
         if os.path.exists(path) and ignoreLockfile == False:
             return True
-        else:
+        if not os.path.exists(path):
+            # No auto-start anymore: tell the user to start VALORANT themselves
+            # and exit cleanly instead of launching the Riot client.
             self.log("Lockfile does not exist, VALORANT is not open")
-            self.acc_manager.start_valorant()
-            
-            while not os.path.exists(path):
-                time.sleep(1)
-            os.system('cls')
-            return True
+            print("VALORANT is not running. Start the game, then reopen VRY ShowNames.")
+            os._exit(0)
+        os.system('cls')
+        return True
