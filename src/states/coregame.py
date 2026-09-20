@@ -19,7 +19,7 @@ class Coregame:
             match_id = self.response['MatchID']
             self.log(f"retrieved coregame match id: '{match_id}'")
             return match_id
-        except (KeyError, TypeError, AttributeError):  # AttributeError: fetch() returns None on empty/non-JSON bodies
+        except (KeyError, TypeError, AttributeError):  # AttributeError: fetch() returns None on empty/non-JSON bodies and remote transport failures
             self.log(f"cannot find coregame match id: ")
             # print(f"No match id found. {self.response}")
             time.sleep(5)

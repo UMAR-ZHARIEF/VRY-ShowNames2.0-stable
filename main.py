@@ -217,8 +217,17 @@ try:
         # matches today's behavior: a failed fetch aborted startup
         raise RuntimeError("could not fetch https://valorant-api.com/v1/weapons/skins")
     gameContent = content.get_content()
-    seasonID = content.get_latest_season_id(gameContent)
-    previousSeasonID = content.get_previous_season_id(gameContent)
+    if gameContent is None:
+        # fetch() returns None on remote transport failures; seasonID=None
+        # is the same "missing season" state get_previous_season_id already
+        # produces, and get_rank/get_act_episode_from_act_id degrade to the
+        # default rank data instead of crashing.
+        log("content fetch failed: skipping season lookup, rank data will use defaults")
+        seasonID = None
+        previousSeasonID = None
+    else:
+        seasonID = content.get_latest_season_id(gameContent)
+        previousSeasonID = content.get_previous_season_id(gameContent)
     # Rank+stats cache per player for the current match now lives in ctx
     # (MatchContext.reset/ctx.ensure_match_player_cache).
     lastGameState = ""

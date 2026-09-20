@@ -34,6 +34,22 @@ class Rank:
             "statusgood": None,
             "statuscode": None,
             }
+        if response is None:
+            # fetch() returns None on remote transport failures; degrade to
+            # the same zeroed rank data the KeyError/TypeError paths below
+            # produce instead of crashing on response.ok (AttributeError).
+            self.log(f"rank: no rank response for {puuid}, using default rank data")
+            final["rank"] = 0
+            final["rr"] = 0
+            final["leaderboard"] = 0
+            final["peakrank"] = 0
+            final["wr"] = "N/a"
+            peak_rank_act_ep = self.content.get_act_episode_from_act_id(seasonID)
+            final["peakrankact"] = peak_rank_act_ep["act"]
+            final["peakrankep"] = peak_rank_act_ep["episode"]
+            final["statusgood"] = False
+            final["statuscode"] = None
+            return final
         try:
             if response.ok:
                 # self.log("retrieved rank successfully")

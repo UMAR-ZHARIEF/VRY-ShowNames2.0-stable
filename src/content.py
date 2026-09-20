@@ -145,6 +145,12 @@ class Content():
 
             return None
 
+        # fetch() can leave self.content None (remote transport failure) and
+        # callers pass None for a missing season; return the default shape
+        # instead of raising. Unknown non-None act ids keep today's behavior.
+        if not self.content or act_id is None:
+            return final
+
         # Process seasons to find act and episode
         act_found = False
         episode = []

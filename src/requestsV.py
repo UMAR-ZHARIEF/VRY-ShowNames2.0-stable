@@ -15,6 +15,18 @@ from src.logs import redact_headers
 # guard-tested in tests/test_secrets_redaction.py).
 requests = pooled_requests
 
+# Transport failures on the remote (glz/pd/custom) hosts that mean the peer
+# dropped or stalled the connection instead of answering. Seen in production
+# when glz closed a mid-poll connection at a match boundary
+# (RemoteDisconnected inside ConnectionError). fetch() converts these into
+# one compact log line plus a None result, so the cycle guards in
+# src/states/ skip the cycle instead of the process dying on a propagated
+# exception; no retry, no recursion. The local 127.0.0.1 branch keeps its
+# own retry loop and is deliberately excluded.
+_REMOTE_TRANSPORT_ERRORS = (requests.exceptions.ConnectionError,
+                            requests.exceptions.Timeout,
+                            requests.exceptions.ChunkedEncodingError)
+
 
 def _parse_json_body(response):
     """Parse a response body as JSON; None means empty or non-JSON body.
@@ -57,7 +69,12 @@ class Requests:
     def fetch(self, url_type: str, endpoint: str, method: str, rate_limit_seconds=5):
         try:
             if url_type == "glz":
-                response = requests.request(method, self.glz_url + endpoint, headers=self.get_headers(), verify=True)
+                try:
+                    response = requests.request(method, self.glz_url + endpoint, headers=self.get_headers(), verify=True)
+                except _REMOTE_TRANSPORT_ERRORS as error:
+                    self.log(f"fetch: url: '{url_type}', endpoint: {endpoint},"
+                             f" {type(error).__name__}: skipping cycle")
+                    return None
                 self.log(f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
                     f" response code: {response.status_code}")
 
@@ -87,7 +104,12 @@ class Requests:
                     self.fetch(url_type, endpoint, method)
                 return body
             elif url_type == "pd":
-                response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=True)
+                try:
+                    response = requests.request(method, self.pd_url + endpoint, headers=self.get_headers(), verify=True)
+                except _REMOTE_TRANSPORT_ERRORS as error:
+                    self.log(f"fetch: url: '{url_type}', endpoint: {endpoint},"
+                             f" {type(error).__name__}: skipping cycle")
+                    return None
                 self.log(
                     f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
                     f" response code: {response.status_code}")
@@ -147,7 +169,12 @@ class Requests:
                 self.log(f"Failed to connect to local client after {max_retries} attempts.")
                 return None
             elif url_type == "custom":
-                response = requests.request(method, f"{endpoint}", headers=self.get_headers(), verify=True)
+                try:
+                    response = requests.request(method, f"{endpoint}", headers=self.get_headers(), verify=True)
+                except _REMOTE_TRANSPORT_ERRORS as error:
+                    self.log(f"fetch: url: '{url_type}', endpoint: {endpoint},"
+                             f" {type(error).__name__}: skipping cycle")
+                    return None
                 self.log(
                     f"fetch: url: '{url_type}', endpoint: {endpoint}, method: {method},"
                     f" response code: {response.status_code}")
