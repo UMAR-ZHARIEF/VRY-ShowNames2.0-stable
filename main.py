@@ -98,6 +98,22 @@ def program_exit(status: int):  # so we don't need to import the entire sys modu
     raise sys.exit(status)
 
 
+def _final_flush():
+    # os._exit skips atexit, so the final flush both stores register there is
+    # lost on the hard-exit paths below. Each flush runs in its own guard: a
+    # failure in one must not block the other or the exit itself. Both are
+    # no-ops when nothing is dirty; the guards also absorb a NameError when
+    # startup died before the store was even created.
+    try:
+        stats.flush_now()
+    except Exception:
+        pass
+    try:
+        nameCache.flush_now()
+    except Exception:
+        pass
+
+
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.settimeout(0)
@@ -194,7 +210,7 @@ try:
     loadoutsClass = Loadouts(Requests, log, colors, Server, current_map)
     table = Table(cfg, log)
 
-    stats = Stats()
+    stats = Stats(log)
 
     if cfg.get_feature_flag("discord_rpc"):
         rpc_overrides = RpcOverrides.from_config(cfg, log, getattr(colors, "agent_dict", None), map_urls)
@@ -1516,6 +1532,7 @@ try:
             pass
 except KeyboardInterrupt:
     # lame implementation of fast ctrl+c exit
+    _final_flush()
     os._exit(0)
 except:
     log(traceback.format_exc())
@@ -1526,4 +1543,5 @@ except:
     log(f"FATAL: unhandled exception; banner shown to user: {fatal_banner}")
     print(color(fatal_banner, fore=(255, 0, 0)))
     input("press enter to exit...\n")
+    _final_flush()
     os._exit(1)
