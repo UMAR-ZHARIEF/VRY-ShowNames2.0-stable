@@ -6,23 +6,6 @@
 
 - Single-instance guard. A second copy of the app now exits immediately with a friendly message instead of fighting the first copy over the console and log files. The lock self-heals from crashed runs.
 
-- Game mode text override. New `rpc_overrides` key: `game_mode` (`real` or any
-  free-text mode name, e.g. `Unrated`, `Premier`) replaces the queue-derived
-  mode text in all three Discord card states (" Lobby - <mode>",
-  "Agent Select - <mode>", and "<mode> // <score>" in match). It is free text
-  by design (no fixed mode list to validate against); an empty value warns
-  and falls back to real. Asked in the configurator's Discord Appearance page.
-
-### Added
-
-- Discord card pin and map override. New `rpc_overrides` keys: `rpc_state`
-  (`real`/`lobby`/`agent_select`/`ingame`) pins the card to one look regardless
-  of the real game state (timer keeps counting; real transitions are suppressed
-  while pinned), and `map` (`real` or a map display name, e.g. `Ascent`)
-  replaces the big image on the agent-select and in-match cards. Both default
-  to `real`; invalid values produce a named warning and fall back to real. The
-  two entries are asked in the configurator's Discord Appearance page.
-
 ## 2026-09-12
 
 ### Added
@@ -46,12 +29,6 @@
   agent select and matches and uses the configured cooldown otherwise. Up to 3
   consecutive failed checks are tolerated before any disconnect handling; a
   single failed check keeps the previous state.
-- Discord appearance overrides (new `rpc_overrides` config section, editable in
-  `config.json` or the configurator): choose any rank for the Discord card badge
-  (all three states), any agent name in the in-match details line, and any party
-  size / party max / score numbers (party in all states, scores in-match only).
-  Every value defaults to "real": the card looks exactly as before until you set
-  an override. Invalid values are logged and fall back to "real".
 - Regression test suites: `tests/test_enemy_reveal.py`,
   `tests/test_level_fallback.py`, `tests/test_static_content.py`,
   `tests/test_skin_seam.py`, `tests/test_ws_stop.py`,
